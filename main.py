@@ -2,6 +2,5 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-st.write('Test número uno de texto')
+st.header('Selección de carga de datos')
 
-st.subheader('Carga de datos')
