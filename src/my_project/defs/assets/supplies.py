@@ -31,7 +31,7 @@ def rawGlobalSupply(database: DuckDBResource) -> dg.MaterializeResult:
 @dg.asset(deps=[rawGlobalSupply])
 def categGlobalSupply(database: DuckDBResource) -> None:
     output_path = "categ_data.parquet"
-    exclude_column = "Lead_Time_Days"
+    exclude_column = "Shipment_ID"
 
     query = f"""
         COPY ( 
