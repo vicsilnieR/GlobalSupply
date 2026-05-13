@@ -9,12 +9,6 @@ import joblib
 import dask.array as da
 import time
 import os, sys
-from sklearn.model_selection import train_test_split, LeaveOneOut
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.compose import make_column_transformer
-from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
-from sklearn.metrics import confusion_matrix, classification_report, mean_absolute_error, mean_squared_error, r2_score
-from sklearn.svm import SVC
 import warnings
 
 DIR_MODELOS = 'modelos'
@@ -41,7 +35,7 @@ def load_all_models():
     Busca y carga todos los modelos entrenados desde la carpeta 'modelos/'.
     """
     model_files = {
-        'K vecionos más cercanos':'K_vecinos_mas_cercanos.pkl',
+        'K vecinos más cercanos':'K_vecinos_mas_cercanos.pkl',
         'Máquinas de soporte vectorial':'Máquinas_de_soporte_vectorial.pkl',
         'Regresión Logística': 'Regresión_logistica.pkl',
         'Bosques Aleatorios': 'Bosques_aleatorios.pkl',
@@ -57,22 +51,33 @@ def load_all_models():
             st.error(f"No se encontró el archivo en: {path}")    
     return loaded_models
 
-available_models = load_all_models()
+@st.cache_data
+def load_metrics():
+    """
+    Carga el diccionario con las métricas guardadas durante el entrenamiento.
+    """
+    path = os.path.join(DIR_MODELOS, 'all_metrics.pkl')
+    if os.path.exists(path):
+        return joblib.load(path)
+    return None
 
-tab1, tab2, tab3 = st.tabs(["Carga de datos", "Visualizaciones descriptivas", "Modelos"])
+available_models = load_all_models()
+all_metrics_data = load_metrics()
+
+tab1, tab2, tab3, tab4 = st.tabs(["Carga de datos", "Visualizaciones descriptivas", "Predicción con modelos", "Eficacia de los modelos"])
 
 with tab1:
     st.header('Carga de datos y previsualización')
 
     with st.spinner('Cargando datos de transporte global'):
-        st.session_state.data = load_selected_data("categ_data.parquet")
+        st.session_state.data = load_selected_data("https://raw.githubusercontent.com/vicsilnieR/GlobalSupply/main/datos/supplies_data.parquet")
     st.success('Se han cargado los datos correctamente')
 
     fil1, fil2, fil3 = st.columns(3)
-    ports = st.session_state.data['Origin_Port'].unique().to_list()
-    transports_list = st.session_state.data['Transport_Mode'].unique().to_list()
-    products = st.session_state.data['Product_Category'].unique().to_list()
-    weathers_list = st.session_state.data['Weather_Condition'].unique().to_list()
+    ports = st.session_state.data['Origin_Port'].unique().tolist() #Correccion aviso terminal: FutureWarning: Categorical.to_list is deprecated and will be removed in a future version. Use obj.tolist() instead
+    transports_list = st.session_state.data['Transport_Mode'].unique().tolist()
+    products = st.session_state.data['Product_Category'].unique().tolist()
+    weathers_list = st.session_state.data['Weather_Condition'].unique().tolist()
 
 
     with fil1:
@@ -169,7 +174,7 @@ with tab1:
     )
 
     st.dataframe(st.session_state.data.query(query_filter_df),
-                    use_container_width=True,
+                    width='stretch', #corrección aviso en terminal: For `use_container_width=True`, use `width='stretch'`
                     hide_index=True,
                     on_select="rerun",
                     selection_mode="multi-row",
@@ -188,6 +193,7 @@ with tab2:
     #Listas: categorías en variables categóricas
     transports = st.session_state.data['Transport_Mode'].unique().to_numpy()
     weathers = st.session_state.data['Weather_Condition'].unique().to_numpy()
+    ports2 = st.session_state.data['Origin_Port'].unique().to_numpy()
 
     columns_type = st.session_state.data.dtypes.apply(lambda x: x.name)
 
@@ -200,41 +206,25 @@ with tab2:
                  title = 'Tipo de datos',
                  color_discrete_sequence=px.colors.qualitative.Pastel
                  )
-    st.plotly_chart(fig)
-
-    #
-
-    st.header('Zona de test')
     
-    
-    st.subheader('Test selector')
-    selected_test = st.selectbox('Seleccionar medio de transporte',
-                                      weathers)
-    
-    test = st.session_state.data.loc[:,['Weather_Condition','Distance_km', 'Geopolitical_Risk_Score', 'Disruption_Occurred']]
-    test = test.sort_values(['Weather_Condition', 'Disruption_Occurred'], ascending= [True, False])
-    fig = px.scatter(test[test['Weather_Condition'] == selected_test], 
-                     x='Distance_km', 
-                     y='Geopolitical_Risk_Score',
-                     color = 'Disruption_Occurred',
-                     marginal_x='histogram',
-                     trendline='ols',
-                     color_discrete_sequence=px.colors.qualitative.Pastel)
-    st.plotly_chart(fig)
+    with st.container(border=True):
+        st.plotly_chart(fig)
 
     #VISUALIZACIÓN BÁSICA VARIABLES CATEGÓRICAS
-
-    selected_categ_col = st.selectbox('Selecciona una variable categórica', categ_cols)
-    fig = px.histogram(st.session_state.data, 
-                   x=selected_categ_col, 
-                   color_discrete_sequence=['rgb(246, 207, 113)'],
-                   text_auto=True,
-                   labels={
-                        selected_categ_col: selected_categ_col.replace('_', ' ').title(), 
-                    }
-                   )
-    fig.update_yaxes(title_text='Total')
-    st.plotly_chart(fig)
+    with st.container(border=True):
+        selected_categ_col = st.selectbox('Selecciona una variable categórica', categ_cols)
+        fig = px.histogram(st.session_state.data, 
+                    x=selected_categ_col, 
+                    color_discrete_sequence=['rgb(246, 207, 113)'],
+                    text_auto=True,
+                    labels={
+                            selected_categ_col: selected_categ_col.replace('_', ' ').title(), 
+                        },
+                        title=f'Cantidad de observaciones por {selected_categ_col}'
+                    )
+        fig.update_yaxes(title_text='Total')
+    
+        st.plotly_chart(fig)
 
     st.write(px.colors.qualitative.Pastel)
     #VISUALIZACIÓN BÁSICA VARIABLES CONTINUAS
@@ -261,21 +251,23 @@ with tab2:
     #MEDIO DE TRANSPORTE + RIESGO GEOPOLITICO
 
     # MEDIO DE TRANSPORTE + CLIMA
-    st.subheader('Días de retraso según medio de transporte y clima')
-    selected_transport = st.selectbox('Seleccionar medio de transporte',
-                                      transports, key='sb1')
-    
-    df_temp = st.session_state.data.loc[:,['Transport_Mode', 'Weather_Condition', 'Lead_Time_Days']]
-    df_temp = df_temp.sort_values(['Transport_Mode', 'Weather_Condition'])
-    fig = px.box(df_temp[df_temp['Transport_Mode']==selected_transport], 
-                 x='Weather_Condition', 
-                 y='Lead_Time_Days',
-                 color='Weather_Condition',
-                 color_discrete_sequence=px.colors.qualitative.Pastel                 
-                 )
-    fig.update_layout(showlegend=False)
-    fig.update_yaxes(title_text='Días hasta entrega')
-    st.plotly_chart(fig)
+    with st.container(border=True):
+        selected_transport = st.selectbox('Seleccionar medio de transporte',
+                                        transports, key='sb1')
+        
+        df_temp = st.session_state.data.loc[:,['Transport_Mode', 'Weather_Condition', 'Lead_Time_Days']]
+        df_temp = df_temp.sort_values(['Transport_Mode', 'Weather_Condition'])
+        fig = px.box(df_temp[df_temp['Transport_Mode']==selected_transport], 
+                    x='Weather_Condition', 
+                    y='Lead_Time_Days',
+                    color='Weather_Condition',
+                    color_discrete_sequence=px.colors.qualitative.Pastel   ,
+                    title='Días de retraso según medio de transporte y clima'              
+                    )
+        fig.update_layout(showlegend=False)
+        fig.update_yaxes(title_text='Días hasta entrega')
+        fig.update_xaxes(title_text='Condición climática')
+        st.plotly_chart(fig)
 
     ## VASILANDO DE VISUALISASION
 
@@ -316,174 +308,230 @@ with tab2:
     fig.update_layout(
         title_text='Título aquí',
         violingap=0.1, violingroupgap=0, violinmode='overlay')
+    fig.update_yaxes(title_text='Días hasta entrega')
+    fig.update_xaxes(title_text='Condición climática')
     st.plotly_chart(fig)
 
-    with tab3:
-        st.header("Análisis de Parche (Inferencia)")
+    #___________________________
+    st.subheader('Test selector')
+    selected_origin = st.selectbox('Seleccionar puerto de origen',
+                                      ports2)
+    selected_desti = st.selectbox('Seleccionar puerto de destino',
+                                      ports2)
+    test = st.session_state.data.loc[:,['Origin_Port','Destination_Port','Weather_Condition', 'Geopolitical_Risk_Score', 'Disruption_Occurred']]
+    test_fil = test[(test['Origin_Port'] == selected_origin) & (test['Weather_Condition'] == 'Clear')]
     
-        if not available_models:
-            st.error(f"⚠️ No se ha encontrado ningún modelo en la carpeta '{DIR_MODELOS}/'. Ejecuta el script de entrenamiento primero.")
-        else:
-            st.markdown("### Configuración del Motor Predictivo")
-            
-            # El usuario elige el modelo
-            selected_model_name = st.selectbox(
-                "Selecciona la Inteligencia Artificial a usar:", 
-                options=list(available_models.keys()),
-                index=len(available_models)-1 
-            )
-            
-            active_model = available_models[selected_model_name]
-            
-            # --- NUEVO: Lógica para el botón de descarga ---
-            # Diccionario para saber qué archivo corresponde a cada nombre del selectbox
-            model_filenames = {
-            'K vecionos más cercanos':'K_vecinos_mas_cercanos.pkl',
-            'Máquinas de soporte vectorial':'Máquinas_de_soporte_vectorial.pkl',
-            'Regresión Logística': 'Regresión_logistica.pkl',
-            'Bosques Aleatorios': 'Bosques_aleatorios.pkl',
-            'Gradient Boosting': 'Gradient_boosting.pkl'
-        }
 
-            
-            # Obtenemos la ruta del archivo seleccionado
-            selected_filename = model_filenames[selected_model_name]
-            file_path = os.path.join(DIR_MODELOS, selected_filename)
-            
-            # Leemos el archivo en modo binario y creamos el botón
-            if os.path.exists(file_path):
-                with open(file_path, "rb") as file:
-                    st.download_button(
-                        label=f"📥 Descargar modelo {selected_model_name} (.pkl)",
-                        data=file,
-                        file_name=selected_filename,
-                        mime="application/octet-stream"
-                    )
-            # -----------------------------------------------
-            
-            st.divider() # Línea separadora visual
-            
-            # Dividimos en dos columnas
-            col_upload, col_result = st.columns([1, 1])
-            
-            with col_upload:
-                # Contenedor con borde para estética moderna
-                with st.container(border=True):
-                    st.subheader("1. Cargar Muestra")
-                    uploaded_file = st.file_uploader("Sube un parche histológico (JPG/PNG)", type=["jpg", "png", "jpeg"])
-                    
-                    if uploaded_file is not None:
-                        st.write('Aquí irá previsualización del archivo subido')
-                        
-                    
-            with col_result:
-                # Contenedor con borde para el diagnóstico
-                with st.container(border=True):
-                    st.subheader(f"2. Resultado de IA")
-                    
-                    if uploaded_file is not None:
-                        with st.spinner(f"Analizando tejido con {selected_model_name}..."):
-                            # Preprocesamiento
-                            img_resized = image.resize((50, 50)) 
-                            img_array = np.array(img_resized)
-                            img_flat = (img_array / 255.0).flatten()
-                            
-                            # Predicción
-                            prediction = active_model.predict_proba([img_flat])[0][1] 
-                            
-                            threshold = 0.5
-                            is_idc_positive = prediction > threshold
-                            
-                            st.markdown("### Diagnóstico Asistido:")
-                            if is_idc_positive:
-                                st.error(f"**Positivo para IDC** (Confianza: {prediction:.2%})")
-                            else:
-                                st.success(f"**Negativo para IDC** (Confianza: {(1 - prediction):.2%})")
-                            
-                            # Barra de progreso
-                            st.progress(float(prediction), text="Probabilidad de Malignidad")
-                    else:
-                        st.info("Sube una imagen en la tarjeta de la izquierda para comenzar el análisis.")
+    fig = px.scatter(
+                    test_fil,
+                    x='Destination_Port', 
+                    y='Geopolitical_Risk_Score',
+                    color = 'Disruption_Occurred',
+                    facet_col='Disruption_Occurred',
+                    color_discrete_map={0: 'rgb(102, 197, 204)', 1: 'rgb(246, 207, 113)'})
+    st.plotly_chart(fig)
 
 
-        @st.cache_data
-        def preproc_data(df, drop_col, res_col_cont, res_col_reg):
-            X = df.drop(columns=drop_col)
-            y1 = df[res_col_cont]
-            y2 = df[res_col_reg]
-            X_train, X_test, y_train_clas, y_test_clas, y_train_reg, y_test_reg = train_test_split(
-                X,
-                y1,
-                y2,
-                random_state=42,
-                test_size=0.2
+with tab3:
+    st.header("Análisis de Parche (Inferencia)")
 
-            )
-            
-            return X_train, X_test, y_train_clas, y_test_clas, y_train_reg, y_test_reg
-
-        X_categ_cols = ['Origin_Port', 'Destination_Port', 'Transport_Mode',
-                 'Product_Category', 'Weather_Condition']
-        X_cont_cols = ['Distance_km', 'Weight_MT', 'Fuel_Price_Index', 'Geopolitical_Risk_Score',
-                    'Carrier_Reliability_Score']
-
-        ## Conjunto de entrenamiento y test. Variable objetivo para clasificación/regresión
-
-        X_train, X_test, y_train_Clas, y_test_Clas, y_train_Reg, y_test_Reg = preproc_data(
-            st.session_state.data, 
-            ['Date', 'Lead_Time_Days', 'Disruption_Occurred','Year','Month','Day'],
-            ['Disruption_Occurred'],
-            ['Lead_Time_Days']
-        )
-
-        ## Preprocesado KNN y SVM: 
-
-        ct = make_column_transformer(
-            (StandardScaler(), X_cont_cols),
-            (OneHotEncoder(sparse_output=False), X_categ_cols)
-        )
-        ct.set_output(transform='pandas')
-
-        X_train_proc = ct.fit_transform(X_train)
-        X_test_proc = ct.transform(X_test)
+    if not available_models:
+        st.error(f"No se ha encontrado ningún modelo en la carpeta '{DIR_MODELOS}/'. Ejecuta el script de entrenamiento primero.")
+    else:
+        st.markdown("### Selección del Motor Predictivo")
         
-        ### Clasificación mediante KNN
-
-        knn_Clas = KNeighborsClassifier(n_neighbors=11)
-        knn_Clas.fit(X_train_proc, y_train_Clas)
-
-        knn_y_pred_Clas = knn_Clas.predict(X_test_proc)
-        #Porcentaje de aciertos
-        st.write('Aciertos clas KNN')
-        st.write(knn_Clas.score(X_test_proc, y_test_Clas))
-
-        ### Regresión mediante KNN
-
-        knn_Reg = KNeighborsRegressor(n_neighbors=11)
-        knn_Reg.fit(X_train_proc, y_train_Reg)
-
-        knn_y_pred_Reg = knn_Reg.predict(X_test_proc)
-        #Métricas de rendimiento
-        st.write('Aciertos reg KNN')
-        mae = mean_absolute_error(y_test_Reg, knn_y_pred_Reg)
-        mse = mean_squared_error(y_test_Reg, knn_y_pred_Reg)
-        r2 = r2_score(y_test_Reg, knn_y_pred_Reg)
-        st.write(mae, mse, r2)
-
-        ### Clasificación mediante SVM
-        svm_model = SVC(kernel='rbf', C=1.0, gamma='scale', random_state=42)
-
-        svm_model.fit(X_train_proc, y_train_Clas)
-
-        #Porcentaje de aciertos
-        st.write('Aciertos clas SVM')
-        st.write(svm_model.score(X_test_proc,y_test_Clas))
-
-        ## Preprocesado Árboles y Naive-Bayes(revisar)
-        ct_arboles = make_column_transformer(
-            (OneHotEncoder(handle_unknown='ignore'), X_categ_cols),
-            remainder='passthrough' # Esto deja las columnas numéricas intactas sin tocarlas
+        # El usuario elige el modelo
+        selected_model_name = st.selectbox(
+            "Selecciona la Inteligencia Artificial a usar:", 
+            options=list(available_models.keys()),
+            index=len(available_models)-1 
         )
+        
+        active_model = available_models[selected_model_name]
+        
+        # --- NUEVO: Lógica para el botón de descarga ---
+        # Diccionario para saber qué archivo corresponde a cada nombre del selectbox
+        model_filenames = {
+        'K vecinos más cercanos':'K_vecinos_mas_cercanos.pkl',
+        'Máquinas de soporte vectorial':'Máquinas_de_soporte_vectorial.pkl',
+        'Regresión Logística': 'Regresión_logistica.pkl',
+        'Bosques Aleatorios': 'Bosques_aleatorios.pkl',
+        'Gradient Boosting': 'Gradient_boosting.pkl'
+    }
+
+        
+        # Obtenemos la ruta del archivo seleccionado
+        selected_filename = model_filenames[selected_model_name]
+        file_path = os.path.join(DIR_MODELOS, selected_filename)
+        
+        # Leemos el archivo en modo binario y creamos el botón
+        if os.path.exists(file_path):
+            with open(file_path, "rb") as file:
+                st.download_button(
+                    label=f"Descargar modelo {selected_model_name} (.pkl)",
+                    data=file,
+                    file_name=selected_filename,
+                    mime="application/octet-stream"
+                )
+        # -----------------------------------------------
+        
+        st.divider() # Línea separadora visual
+        
+        # Contenedor con borde para estética moderna
+        with st.container(border=True):
+            st.subheader("1. Cargar Muestra")
+            fil1, fil2, fil3 = st.columns(3)
+            ports = st.session_state.data['Origin_Port'].unique().tolist()
+            transports_list = st.session_state.data['Transport_Mode'].unique().tolist()
+            products = st.session_state.data['Product_Category'].unique().tolist()
+            weathers_list = st.session_state.data['Weather_Condition'].unique().tolist()
+
+
+            with fil1:
+                origin_port_for = st.selectbox("Puerto de origen",
+                                                    st.session_state.data['Origin_Port'].cat.categories)
+                
+                dest_port_for = st.selectbox("Puerto de destino",
+                                                    st.session_state.data['Destination_Port'].cat.categories)
+
+                transport_mode_for = st.selectbox("Transportado vía",
+                                                        st.session_state.data['Transport_Mode'].cat.categories)
+                prod_categ_for = st.selectbox("Categoría del producto",
+                                                        st.session_state.data['Product_Category'].cat.categories)
+            
+            with fil2:
+                dist_for = st.slider("Distancia en Km",
+                                        st.session_state.data['Distance_km'].min(),
+                                        st.session_state.data['Distance_km'].max(),
+                                        st.session_state.data['Distance_km'].mean())
+                weight_for = st.slider("Peso",
+                                        st.session_state.data['Weight_MT'].min(),
+                                        st.session_state.data['Weight_MT'].max(),
+                                        st.session_state.data['Weight_MT'].mean())
+                fuel_price_for = st.slider("Índice de precios del combustible",
+                                        st.session_state.data['Fuel_Price_Index'].min(),
+                                        st.session_state.data['Fuel_Price_Index'].max(),
+                                        st.session_state.data['Fuel_Price_Index'].mean())
+                geopolitical_for = st.slider("Puntuación de riesgo geopolítico",
+                                        st.session_state.data['Geopolitical_Risk_Score'].min(),
+                                        st.session_state.data['Geopolitical_Risk_Score'].max(),
+                                        st.session_state.data['Geopolitical_Risk_Score'].mean())        
+            
+            with fil3:
+                weather_for = st.selectbox("Condición climática",
+                                                        st.session_state.data['Weather_Condition'].cat.categories)
+            
+                carrier_for = st.slider("Confianza del transportista",
+                                        st.session_state.data['Carrier_Reliability_Score'].min(),
+                                        st.session_state.data['Carrier_Reliability_Score'].max(),
+                                        st.session_state.data['Carrier_Reliability_Score'].mean())
+
+            instance_classif = pd.DataFrame([{
+                'Origin_Port': origin_port_for,
+                'Destination_Port': dest_port_for,
+                'Transport_Mode': transport_mode_for,
+                'Product_Category': prod_categ_for,
+                'Distance_km': dist_for,
+                'Weight_MT': weight_for,
+                'Fuel_Price_Index': fuel_price_for,
+                'Geopolitical_Risk_Score': geopolitical_for,
+                'Weather_Condition': weather_for,
+                'Carrier_Reliability_Score': carrier_for
+            }])
+
+            X_categ_cols = ['Origin_Port', 'Destination_Port', 'Transport_Mode', 'Product_Category', 'Weather_Condition']
+
+            for col in X_categ_cols:
+                instance_classif[col] = instance_classif[col].astype('category')
+
+            st.write(instance_classif)
+            
+            # Contenedor con borde para el diagnóstico
+        with st.container(border=True):
+            st.subheader(f"2. Resultado de IA")
+            
+            if instance_classif is not None:
+                with st.spinner(f"Analizando tejido con {selected_model_name}..."):
+                    
+                    prediction = active_model.predict_proba(instance_classif)[0][1] 
+                    
+                    threshold = 0.5
+                    is_disrr_positive = prediction > threshold
+                    
+                    st.markdown("### Diagnóstico Asistido:")
+                    if is_disrr_positive:
+                        st.error(f"**Ocurrirá una incidencia** (Confianza: {prediction:.2%})")
+                    else:
+                        st.success(f"**No ocurrirá una incidencia** (Confianza: {(1 - prediction):.2%})")
+                    
+                    # Barra de progreso
+                    st.progress(float(prediction), text="Probabilidad de Malignidad")
+            else:
+                st.info("Sube una imagen en la tarjeta de la izquierda para comenzar el análisis.")
+
+with tab4:
+    st.header("Análisis Comparativo y Métricas")
+    
+    if all_metrics_data is None:
+        st.warning(f"No se encontraron datos de métricas en '{DIR_MODELOS}/all_metrics.pkl'. Ejecuta el entrenamiento primero.")
+    else:
+        st.markdown("""
+        A continuación se muestran los resultados obtenidos por cada modelo 
+        durante la fase de prueba con datos nunca antes vistos.
+        """)
+        
+        # 1. Selector de modelo para ver su detalle
+        modelo_stats = st.selectbox(
+            "Selecciona el modelo para ver su detalle técnico:",
+            options=list(all_metrics_data.keys())
+        )
+        
+        # 2. Mostrar métricas clave dinámicas
+        m = all_metrics_data[modelo_stats]
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Precisión Global (Accuracy)", f"{m['Accuracy']:.2%}")
+        col2.metric("Sensibilidad (Recall)", f"{m['Recall']:.2%}")
+        col3.metric("Precisión Positivos (Precision)", f"{m['Precision']:.2%}")
+        col4.metric("F1-Score", f"{m['F1']:.2%}")
+        
+        
+        
+        st.warning("""
+        🩺 **Nota Clínica sobre la Sensibilidad (Recall):** En la detección de cáncer, la Sensibilidad es la métrica más crítica. Representa la capacidad del modelo para no dejar escapar ningún caso positivo. 
+        Un valor bajo (por ejemplo, cercano al 50%) es **clínicamente inaceptable**, ya que significa que el modelo está fallando en detectar casi la mitad de los tejidos malignos reales (Falsos Negativos). En entornos médicos, se busca priorizar esta métrica por encima del 90-95%.
+        """)
+
+        st.divider()
+        # 3. Mostrar las imágenes correspondientes a ese modelo
+        col_img1, col_img2 = st.columns(2)
+        
+        with col_img1:
+            st.subheader("Matriz de Confusión")
+            img_cm = os.path.join(DIR_MODELOS, f"{modelo_stats}_cm.png")
+            if os.path.exists(img_cm):
+                st.image(img_cm, width='stretch')
+            else:
+                st.info("Imagen no encontrada.")
+                
+        with col_img2:
+            st.subheader("Curva ROC (AUC)")
+            img_roc = os.path.join(DIR_MODELOS, f"{modelo_stats}_roc.png")
+            if os.path.exists(img_roc):
+                st.image(img_roc, width='stretch')
+            else:
+                st.info("Imagen no encontrada.")
+
+        st.divider()
+        
+        # 4. Tabla resumen comparativa
+        st.subheader("Resumen Comparativo General")
+        # Convertimos el diccionario a DataFrame para mostrarlo bonito
+        df_metrics = pd.DataFrame(all_metrics_data).T
+        
+        # Formatear el DataFrame a porcentajes antes de mostrarlo
+        df_metrics_styled = df_metrics.style.format("{:.2%}").highlight_max(axis=0, color="#86c5ce")
+        st.dataframe(df_metrics_styled, width='stretch')
+
 
     
         

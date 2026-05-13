@@ -1,20 +1,22 @@
 import os
-import glob
 import pandas as pd
 import numpy as np
 import joblib
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
+
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import make_column_transformer
-from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, roc_curve, auc, mean_absolute_error, mean_squared_error, r2_score
-
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, roc_curve, auc
+from sklearn.pipeline import Pipeline
 
 def load_selected_data(dataset_name):
     data = pd.read_parquet(dataset_name)
@@ -38,12 +40,11 @@ def preproc_data(df, drop_col, res_col_cont, res_col_reg):
         y2,
         random_state=42,
         test_size=0.2
-
     )
     
     return X_train, X_test, y_train_clas, y_test_clas, y_train_reg, y_test_reg
 
-data = load_selected_data("categ_data.parquet")
+data = load_selected_data("https://raw.githubusercontent.com/vicsilnieR/GlobalSupply/main/datos/supplies_data.parquet")
 random_state_value = 42
 
 
@@ -61,8 +62,10 @@ X_train, X_test, y_train_Clas, y_test_Clas, y_train_Reg, y_test_Reg = preproc_da
     ['Lead_Time_Days']
 )
 
+##Apareció en consola: recomendaba hacer ravel() para mejor funcionamiento al entrenar
 y_train_Clas = y_train_Clas.values.ravel()
 y_test_Clas = y_test_Clas.values.ravel()
+
 
 ## Preprocesado KNN, SVM y Regresión Logística (Escalados)
 
@@ -72,9 +75,6 @@ ct = make_column_transformer(
 )
 ct.set_output(transform='pandas')
 
-X_train_proc = ct.fit_transform(X_train)
-X_test_proc = ct.transform(X_test)
-
 ## Preprocesado Bosques aleatorios y Gradient Boosting (NO escalados)
 
 ct_tree = make_column_transformer(
@@ -82,8 +82,6 @@ ct_tree = make_column_transformer(
     remainder='passthrough' 
 )
 
-X_train_proc_tree = ct_tree.fit_transform(X_train)
-X_test_proc_tree = ct_tree.transform(X_test)
 
 ## Configuración multimodelo y directorio
 
@@ -97,7 +95,8 @@ knn = KNeighborsClassifier(n_neighbors=9)
 svm = SVC(kernel='rbf', C=1.0, gamma='scale', random_state=random_state_value, probability=True)
 lr = LogisticRegression(max_iter=1000, random_state=random_state_value)
 #NO escalados
-rf = RandomForestClassifier(n_estimators=100, random_state=random_state_value, n_jobs=-1)
+rf = RandomForestClassifier(n_estimators=150, random_state=random_state_value, n_jobs=-1,
+                            min_samples_split=5, max_depth=10)
 gb = GradientBoostingClassifier(n_estimators=50, random_state=random_state_value)
 
 ## Diccionarios para iterar
@@ -120,12 +119,19 @@ results_data = {}
 #Escalado
 for model_name, model in models_scaled.items():
     
+    #Pipeline preprocesado + model (Para no transformar en main.py)
+    pipeline_proc_model = Pipeline([
+        ('Preprocesado', ct),
+        ('Modelo', model)
+    ])
+
+
     #entrenamiento
-    model.fit(X_train_proc, y_train_Clas)
+    pipeline_proc_model.fit(X_train, y_train_Clas)
 
     #predicciones y probs
-    y_pred = model.predict(X_test_proc)
-    y_pred_proba = model.predict_proba(X_test_proc)[:, 1]
+    y_pred = pipeline_proc_model.predict(X_test)
+    y_pred_proba = pipeline_proc_model.predict_proba(X_test)[:, 1]
 
     #calcular métricas
     accuracy = accuracy_score(y_test_Clas, y_pred)
@@ -172,18 +178,24 @@ for model_name, model in models_scaled.items():
     plt.close()
 
     #Guardamos modelo(.pkl)
-    joblib.dump(model, f'{directorio_modelos}/{model_name}.pkl')
+    joblib.dump(pipeline_proc_model, f'{directorio_modelos}/{model_name}.pkl')
 
 #NO escalado
 
 for model_name, model in models.items():
     
+    #Pipeline preprocesado + model (Para no transformar en main.py)
+    pipeline_proc_model = Pipeline([
+        ('Preprocesado', ct_tree),
+        ('Modelo', model)
+    ])
+
     #entrenamiento
-    model.fit(X_train_proc_tree, y_train_Clas)
+    pipeline_proc_model.fit(X_train, y_train_Clas)
 
     #predicciones y probs
-    y_pred = model.predict(X_test_proc_tree)
-    y_pred_proba = model.predict_proba(X_test_proc_tree)[:, 1]
+    y_pred = pipeline_proc_model.predict(X_test)
+    y_pred_proba = pipeline_proc_model.predict_proba(X_test)[:, 1]
 
     #calcular métricas
     accuracy = accuracy_score(y_test_Clas, y_pred)
@@ -230,21 +242,9 @@ for model_name, model in models.items():
     plt.close()
 
     #Guardamos modelo(.pkl)
-    joblib.dump(model, f'{directorio_modelos}/{model_name}.pkl')
+    joblib.dump(pipeline_proc_model, f'{directorio_modelos}/{model_name}.pkl')
 
+#Guardamos métricas globales
+joblib.dump(results_data, f'{directorio_modelos}/all_metrics.pkl')
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+print(X_train.info(verbose=True))

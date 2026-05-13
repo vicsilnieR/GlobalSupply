@@ -5,6 +5,7 @@ version = "0.1.0"
 dependencies = [
     "coiled>=1.134.0",
     "dagster==1.12.18",
+    "dagster-dg-cli>=1.12.18",
     "dagster-duckdb>=0.28.18",
     "dagster-duckdb-pandas>=0.28.18",
     "dask>=2026.3.0",
@@ -14,6 +15,8 @@ dependencies = [
     "kagglehub>=1.0.0",
     "pandas>=2.3.3",
     "plotly>=6.6.0",
+    "pygithub>=2.9.1",
+    "rpy2>=3.6.7",
     "scikit-learn>=1.7.2",
     "seaborn>=0.13.2",
     "statsmodels>=0.14.6",

@@ -5,6 +5,7 @@ import os
 from dagster_duckdb import DuckDBResource
 # from my_project.defs.assets import constants
 from dagster import asset, definitions, resources
+from github import Github, GithubException
 
 @dg.asset
 def rawGlobalSupply(database: DuckDBResource) -> dg.MaterializeResult:
@@ -30,7 +31,7 @@ def rawGlobalSupply(database: DuckDBResource) -> dg.MaterializeResult:
 
 @dg.asset(deps=[rawGlobalSupply])
 def categGlobalSupply(database: DuckDBResource) -> None:
-    output_path = "categ_data.parquet"
+    output_path = "supplies_data.parquet"
     exclude_column = "Shipment_ID"
 
     query = f"""
@@ -43,18 +44,41 @@ def categGlobalSupply(database: DuckDBResource) -> None:
     with database.get_connection() as conn:
         conn.execute(query)
 
-@dg.asset(deps=[rawGlobalSupply])
-def regGlobalSupply(database: DuckDBResource) -> None:
-    output_path = "reg_data.parquet"
-    exclude_column = "Disruption_Occurred"
+    #variables necesarias para la conexión con github
+    token = os.getenv('GITHUB_TOKEN')
+    repo_name = "vicsilnieR/GlobalSupply"
+    branch = "main"
+    github_path = "datos/supplies_data.parquet"
+    commit_message = "supplies_data desde dagster"
 
-    query = f"""
-        COPY ( 
-            SELECT * EXCLUDE ({exclude_column})
-            FROM supplies
-        ) TO '{output_path}' (FORMAT PARQUET);
-    """
+    if not token:
+        raise ValueError('Token de GitHub no disponible')
+    
+    with open(output_path, 'rb') as file:
+        content = file.read()
+    
+    #Conectar con github
+    g_conn = Github(token)
+    repo = g_conn.get_repo(repo_name)
 
-    with database.get_connection() as conn:
-        conn.execute(query)
+    try:
+        contents = repo.get_contents(github_path, ref=branch)
+        repo.update_file(
+            path=github_path,
+            message=commit_message,
+            content=content,
+            sha=contents.sha,
+            branch=branch
+        )
+    except GithubException as e:
+        #Si el archivo no existe, debemos crearlo por primera vez
 
+        if e.status == 404 or "Not Found":
+            repo.create_file(
+                path=github_path,
+                message=commit_message,
+                content=content,
+                branch=branch
+            )
+        else:
+            raise e
