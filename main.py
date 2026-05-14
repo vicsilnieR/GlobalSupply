@@ -73,11 +73,12 @@ all_metrics_data = load_metrics()
 
 @st.cache_resource
 def load_R_functions():
-    r.source('R_functions.R')
-    r_functions = {
-        "contar_filas": ro.globalenv['contar_filas'],
-        "media_envio": ro.globalenv['media_envio']
-    }
+    with localconverter(ro.default_converter + pandas2ri.converter):
+        r.source('R_functions.R')
+        r_functions = {
+            "contar_filas": ro.globalenv['contar_filas'],
+            "media_envio": ro.globalenv['media_envio']
+        }
     
     return r_functions
 
