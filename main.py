@@ -180,12 +180,12 @@ with tab1:
     with localconverter(ro.default_converter + pandas2ri.converter):
         r_dataframe = ro.conversion.py2rpy(query_filter_df)
 
-    r.source('cositaR.R')
-    contar_filas_R = ro.globalenv['contar_filas']
+        r.source('cositaR.R')
+        contar_filas_R = ro.globalenv['contar_filas']
 
-    num_filas_filtradas = contar_filas_R(r_dataframe)
+        num_filas_filtradas = contar_filas_R(r_dataframe)
     st.write(num_filas_filtradas)
-    
+
     st.dataframe(st.session_state.data.query(query_filter_df),
                     width='stretch', #corrección aviso en terminal: For `use_container_width=True`, use `width='stretch'`
                     hide_index=True,
