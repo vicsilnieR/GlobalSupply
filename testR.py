@@ -11,7 +11,7 @@ with localconverter(ro.default_converter + pandas2ri.converter):
     r_dataframe = ro.conversion.py2rpy(data)
 
 r.source('cositaR.R')
-test_func_R = ro.globalenv['test']
+contar_filas_R = ro.globalenv['contar_filas']
 
-resultado = test_func_R(r_dataframe)
+resultado = contar_filas_R(r_dataframe)
 print(resultado)
