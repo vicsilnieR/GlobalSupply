@@ -4,7 +4,6 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from dask.distributed import Client
-from dask.ml.model_selection import GridSearchCV
 import joblib
 import dask.array as da
 import time
@@ -25,6 +24,10 @@ def load_selected_data(dataset_name):
     data = pd.read_parquet(dataset_name)
     cols_to_category = ['Origin_Port', 'Destination_Port', 'Transport_Mode',
                         'Product_Category', 'Weather_Condition', 'Disruption_Occurred']
+    if data['Disruption_Occurred'].dtype != 'object':
+        data['Disruption_Occurred'] = data['Disruption_Occurred'].map({1: 'Sí', 0: 'No'}).astype(str)
+    else:
+        data['Disruption_Occurred'] = data['Disruption_Occurred'].astype(str)
     for col in cols_to_category:
         data[col] = data[col].astype('category')
     data['Date'] = pd.to_datetime(data['Date'], format='%Y/%m/%d')
@@ -68,6 +71,18 @@ def load_metrics():
 available_models = load_all_models()
 all_metrics_data = load_metrics()
 
+@st.cache_resource
+def load_R_functions():
+    r.source('R_functions.R')
+    r_functions = {
+        "contar_filas": ro.globalenv['contar_filas'],
+        "media_envio": ro.globalenv['media_envio']
+    }
+    
+    return r_functions
+
+dict_R = load_R_functions()
+
 tab1, tab2, tab3, tab4 = st.tabs(["Carga de datos", "Visualizaciones descriptivas", "Predicción con modelos", "Eficacia de los modelos"])
 
 with tab1:
@@ -78,7 +93,8 @@ with tab1:
     st.success('Se han cargado los datos correctamente')
 
     fil1, fil2, fil3 = st.columns(3)
-    ports = st.session_state.data['Origin_Port'].unique().tolist() #Correccion aviso terminal: FutureWarning: Categorical.to_list is deprecated and will be removed in a future version. Use obj.tolist() instead
+    orig_ports = st.session_state.data['Origin_Port'].unique().tolist()
+    dest_ports = st.session_state.data['Destination_Port'].unique().tolist() #Correccion aviso terminal: FutureWarning: Categorical.to_list is deprecated and will be removed in a future version. Use obj.tolist() instead
     transports_list = st.session_state.data['Transport_Mode'].unique().tolist()
     products = st.session_state.data['Product_Category'].unique().tolist()
     weathers_list = st.session_state.data['Weather_Condition'].unique().tolist()
@@ -89,13 +105,13 @@ with tab1:
                                             st.session_state.data['Origin_Port'].cat.categories,
                                             default=[])
         if origin_port_fil==[]:
-            origin_port_fil = ports
+            origin_port_fil = orig_ports
         
         dest_port_fil = st.multiselect("Puerto de destino",
                                             st.session_state.data['Destination_Port'].cat.categories,
                                             default=[])
         if dest_port_fil==[]:
-            dest_port_fil = ports
+            dest_port_fil = dest_ports
         
         transport_mode_fil = st.multiselect("Transportado vía",
                                                 st.session_state.data['Transport_Mode'].cat.categories,
@@ -152,10 +168,9 @@ with tab1:
                                                 ['Sí', 'No'],
                                                 default=[])
 
-    disrr_map = {'Sí': 1, 'No':0}
-    disrr_fil = [disrr_map[i] for i in disrr_sel]
-    if disrr_fil == []:
-        disrr_fil = [0, 1]
+        disrr_fil = disrr_sel
+        if disrr_fil == []:
+            disrr_fil = ['Sí', 'No']
 
     query_filter_df = (f'Origin_Port == {origin_port_fil} and '
                        f'Destination_Port == {dest_port_fil} and '
@@ -176,23 +191,31 @@ with tab1:
                        f'Lead_Time_Days <= {lead_time_fil[1]} and '
                        f'Disruption_Occurred == {disrr_fil}'
     )
-
+    df_filtered_visualization = st.session_state.data.query(query_filter_df)
+    
     with localconverter(ro.default_converter + pandas2ri.converter):
-        r_dataframe = ro.conversion.py2rpy(query_filter_df)
+        r_dataframe = ro.conversion.py2rpy(df_filtered_visualization)     
 
-        r.source('cositaR.R')
-        contar_filas_R = ro.globalenv['contar_filas']
+        num_filas_filtradas_r = dict_R["contar_filas"](r_dataframe)
+        num_filas_filtradas_py = ro.conversion.rpy2py(num_filas_filtradas_r)
+        num_filas_filtradas = int(num_filas_filtradas_py[0])
 
-        num_filas_filtradas = contar_filas_R(r_dataframe)
-    st.write(num_filas_filtradas)
+        media_envios_filtrados_r = dict_R["media_envio"](r_dataframe)
+        media_envios_filtrados_py = ro.conversion.rpy2py(media_envios_filtrados_r)
+        media_envios_filtrados = int(media_envios_filtrados_py[0])
 
-    st.dataframe(st.session_state.data.query(query_filter_df),
+    st.markdown('#### Con las características seleccionadas:')
+    col1a, col2a = st.columns(2)
+    col1a.metric("Observaciones:", num_filas_filtradas)
+    col2a.metric("Días de transporte medio:", media_envios_filtrados)
+
+    st.dataframe(df_filtered_visualization,
                     width='stretch', #corrección aviso en terminal: For `use_container_width=True`, use `width='stretch'`
                     hide_index=True,
                     on_select="rerun",
                     selection_mode="multi-row",
                     )
-
+    
 with tab2:
     st.header('Visualizaciones descriptivas')
 
