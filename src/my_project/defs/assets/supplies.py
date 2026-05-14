@@ -16,7 +16,7 @@ def rawGlobalSupply(database: DuckDBResource) -> dg.MaterializeResult:
     query = f"""
         CREATE OR REPLACE TABLE supplies AS
         SELECT * FROM read_csv_auto('{csv_file}')
-        LIMIT 4000;
+        LIMIT 5000;
     """
     
     with database.get_connection() as conn:

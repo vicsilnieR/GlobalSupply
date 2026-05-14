@@ -5,6 +5,7 @@ import joblib
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 import seaborn as sns
 
 
@@ -45,8 +46,12 @@ def preproc_data(df, drop_col, res_col_cont, res_col_reg):
     return X_train, X_test, y_train_clas, y_test_clas, y_train_reg, y_test_reg
 
 data = load_selected_data("https://raw.githubusercontent.com/vicsilnieR/GlobalSupply/main/datos/supplies_data.parquet")
-random_state_value = 42
 
+#CONSTANTES
+random_state_value = 42
+azul_graf = '#66C5CC'
+amarillo_graf = '#F6CF71'
+cmap_perso = LinearSegmentedColormap.from_list('azul_cmap', ['#F5F5F5', azul_graf])
 
 X_categ_cols = ['Origin_Port', 'Destination_Port', 'Transport_Mode',
             'Product_Category', 'Weather_Condition']
@@ -148,9 +153,11 @@ for model_name, model in models_scaled.items():
     }
 
     # Guardamos matriz de confusión
-    plt.figure(figsize=(6, 5))
+    fig, ax = plt.subplots(figsize=(6, 5))
+    fig.patch.set_alpha(0.0)
+    ax.set_facecolor('none')
     cm = confusion_matrix(y_test_Clas, y_pred)
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False,
+    sns.heatmap(cm, annot=True, fmt='d', cmap=cmap_perso, cbar=False,
                 xticklabels=['Negativo (0)', 'Positivo (1)'],
                 yticklabels=['Negativo (0)', 'Positivo (1)'])
     plt.title(f'Matriz de Confusión - {model_name.replace("_", " ")}')
@@ -164,9 +171,11 @@ for model_name, model in models_scaled.items():
     fpr, tpr, thresholds = roc_curve(y_test_Clas, y_pred_proba)
     roc_auc = auc(fpr, tpr)
 
-    plt.figure(figsize=(6, 5))
-    plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'Curva ROC (AUC = {roc_auc:.2f})')
-    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    fig, ax = plt.subplots(figsize=(6, 5))
+    fig.patch.set_alpha(0.0)
+    ax.set_facecolor('none')
+    plt.plot(fpr, tpr, color=amarillo_graf, lw=2, label=f'Curva ROC (AUC = {roc_auc:.2f})')
+    plt.plot([0, 1], [0, 1], color=azul_graf, lw=2, linestyle='--')
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
     plt.xlabel('Tasa de Falsos Positivos (FPR)')
@@ -212,9 +221,11 @@ for model_name, model in models.items():
     }
 
     # Guardamos matriz de confusión
-    plt.figure(figsize=(6, 5))
+    fig, ax = plt.subplots(figsize=(6, 5))
+    fig.patch.set_alpha(0.0)
+    ax.set_facecolor('none')
     cm = confusion_matrix(y_test_Clas, y_pred)
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False,
+    sns.heatmap(cm, annot=True, fmt='d', cmap=cmap_perso, cbar=False,
                 xticklabels=['Negativo (0)', 'Positivo (1)'],
                 yticklabels=['Negativo (0)', 'Positivo (1)'])
     plt.title(f'Matriz de Confusión - {model_name.replace("_", " ")}')
@@ -228,9 +239,11 @@ for model_name, model in models.items():
     fpr, tpr, thresholds = roc_curve(y_test_Clas, y_pred_proba)
     roc_auc = auc(fpr, tpr)
 
-    plt.figure(figsize=(6, 5))
-    plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'Curva ROC (AUC = {roc_auc:.2f})')
-    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    fig, ax = plt.subplots(figsize=(6, 5))
+    fig.patch.set_alpha(0.0)
+    ax.set_facecolor('none')
+    plt.plot(fpr, tpr, color=amarillo_graf, lw=2, label=f'Curva ROC (AUC = {roc_auc:.2f})')
+    plt.plot([0, 1], [0, 1], color=azul_graf, lw=2, linestyle='--')
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
     plt.xlabel('Tasa de Falsos Positivos (FPR)')
@@ -246,5 +259,3 @@ for model_name, model in models.items():
 
 #Guardamos métricas globales
 joblib.dump(results_data, f'{directorio_modelos}/all_metrics.pkl')
-
-print(X_train.info(verbose=True))

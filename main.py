@@ -10,6 +10,8 @@ import dask.array as da
 import time
 import os, sys
 import warnings
+import rpy2.robjects as ro
+from rpy2.robjects import r
 
 DIR_MODELOS = 'modelos'
 
@@ -183,6 +185,9 @@ with tab1:
 with tab2:
     st.header('Visualizaciones descriptivas')
 
+    azul_graf = '#66C5CC'
+    amarillo_graf = '#F6CF71'
+    rojo_graf= '#F89C74'
     #Columnas en: Categóricas/Continuas
 
     categ_cols = ['Origin_Port', 'Destination_Port', 'Transport_Mode',
@@ -195,19 +200,18 @@ with tab2:
     weathers = st.session_state.data['Weather_Condition'].unique().to_numpy()
     ports2 = st.session_state.data['Origin_Port'].unique().to_numpy()
 
-    columns_type = st.session_state.data.dtypes.apply(lambda x: x.name)
-
-    type_count = columns_type.value_counts().reset_index()
-    type_count.columns = ['Tipo', 'Cantidad']
-
-    fig = px.pie(type_count,
-                 values='Cantidad',
-                 names = 'Tipo',
-                 title = 'Tipo de datos',
-                 color_discrete_sequence=px.colors.qualitative.Pastel
-                 )
-    
     with st.container(border=True):
+        columns_type = st.session_state.data.dtypes.apply(lambda x: x.name)
+
+        type_count = columns_type.value_counts().reset_index()
+        type_count.columns = ['Tipo', 'Cantidad']
+
+        fig = px.pie(type_count,
+                    values='Cantidad',
+                    names = 'Tipo',
+                    title = 'Tipo de datos',
+                    color_discrete_sequence=px.colors.qualitative.Pastel
+                    )
         st.plotly_chart(fig)
 
     #VISUALIZACIÓN BÁSICA VARIABLES CATEGÓRICAS
@@ -215,7 +219,7 @@ with tab2:
         selected_categ_col = st.selectbox('Selecciona una variable categórica', categ_cols)
         fig = px.histogram(st.session_state.data, 
                     x=selected_categ_col, 
-                    color_discrete_sequence=['rgb(246, 207, 113)'],
+                    color_discrete_sequence=[amarillo_graf],
                     text_auto=True,
                     labels={
                             selected_categ_col: selected_categ_col.replace('_', ' ').title(), 
@@ -226,29 +230,26 @@ with tab2:
     
         st.plotly_chart(fig)
 
-    st.write(px.colors.qualitative.Pastel)
     #VISUALIZACIÓN BÁSICA VARIABLES CONTINUAS
 
     #CORRELACIÓN VARIABLES CONTINUAS
+    with st.container(border=True):
+        selected_transport2 = st.selectbox('Seleccionar medio de transporte',
+                                        transports, key='sb3')
+        
+        df_temp = st.session_state.data.query(f'Transport_Mode == @selected_transport2')
+        corr_matrix = df_temp.loc[:,cont_cols].corr()
 
-    selected_transport2 = st.selectbox('Seleccionar medio de transporte',
-                                      transports, key='sb3')
-    
-    df_temp = st.session_state.data.query(f'Transport_Mode == @selected_transport2')
-    corr_matrix = df_temp.loc[:,cont_cols].corr()
+        fig = px.imshow(
+            corr_matrix,
+            text_auto=True,     
+            aspect="auto",      
+            color_continuous_scale=[rojo_graf, amarillo_graf, azul_graf, amarillo_graf, rojo_graf], 
+            zmin=-1, zmax=1       
+        )
 
-    fig = px.imshow(
-        corr_matrix,
-        text_auto=True,     
-        aspect="auto",      
-        color_continuous_scale='RdBu_r', 
-        zmin=-1, zmax=1    
-    )
-
-    fig.update_layout(title="Matriz de Correlación")
-    st.plotly_chart(fig)
-
-    #MEDIO DE TRANSPORTE + RIESGO GEOPOLITICO
+        fig.update_layout(title="Matriz de Correlación")
+        st.plotly_chart(fig)
 
     # MEDIO DE TRANSPORTE + CLIMA
     with st.container(border=True):
@@ -269,68 +270,100 @@ with tab2:
         fig.update_xaxes(title_text='Condición climática')
         st.plotly_chart(fig)
 
-    ## VASILANDO DE VISUALISASION
+    # MEDIO DE TRANSPORTE + CLIMA + INCIDENCIA OCURRIDA
+    with st.container(border=True):
+        selected_transport1 = st.selectbox('Seleccionar medio de transporte',
+                                        transports, key='sb2')
+        
+        df_temp = st.session_state.data.query(f'Transport_Mode == @selected_transport1').loc[:,['Weather_Condition', 'Lead_Time_Days', 'Disruption_Occurred']]
+        show_legend = [True,False,False,False,False]
+        fig = go.Figure()
 
-    st.subheader('Días de retraso según medio de transporte, clima e incidencia ocurrida')
-    selected_transport1 = st.selectbox('Seleccionar medio de transporte',
-                                      transports, key='sb2')
-    
-    df_temp = st.session_state.data.query(f'Transport_Mode == @selected_transport1').loc[:,['Weather_Condition', 'Lead_Time_Days', 'Disruption_Occurred']]
-    show_legend = [True,False,False,False,False]
-    fig = go.Figure()
+        for i, weather in enumerate(np.sort(weathers)):
+            df_filtered = df_temp[df_temp['Weather_Condition'] == weather]
+            fig.add_trace(go.Violin(x=df_filtered['Weather_Condition'][df_filtered['Disruption_Occurred'] == 0],
+                                    y=df_filtered['Lead_Time_Days'][df_filtered['Disruption_Occurred'] == 0],
+                                    legendgroup='Sin Incidencia',
+                                    scalegroup='Sin Incidencia',
+                                    name='Sin Incidencia',
+                                    side='negative',
+                                    line_color=azul_graf,
+                                    showlegend=show_legend[i]
+                                    )
+                        )
+            fig.add_trace(go.Violin(x=df_filtered['Weather_Condition'][df_filtered['Disruption_Occurred'] == 1],
+                                    y=df_filtered['Lead_Time_Days'][df_filtered['Disruption_Occurred'] == 1],
+                                    legendgroup='Incidencia',
+                                    scalegroup='Incidencia',
+                                    name='Incidencia',
+                                    side='positive',
+                                    line_color=amarillo_graf,
+                                    showlegend=show_legend[i]
+                                    )
+                        )
+        fig.update_traces(meanline_visible=True,
+                        jitter=0.05,  
+                        scalemode='count',
+                        spanmode='hard'
+                        ) 
+        fig.update_layout(
+            title_text='Días de retraso según medio de transporte, clima e incidencia ocurrida',
+            violingap=0.1, violingroupgap=0, violinmode='overlay')
+        fig.update_yaxes(title_text='Días hasta entrega', range=[-5, None])
+        fig.update_xaxes(title_text='Condición climática', range=[-0.6, len(weathers) - 0.4])
+        st.plotly_chart(fig)
 
-    for i, weather in enumerate(np.sort(weathers)):
-        df_filtered = df_temp[df_temp['Weather_Condition'] == weather]
-        fig.add_trace(go.Violin(x=df_filtered['Weather_Condition'][df_filtered['Disruption_Occurred'] == 0],
-                                y=df_filtered['Lead_Time_Days'][df_filtered['Disruption_Occurred'] == 0],
-                                legendgroup='Sin Incidencia',
-                                scalegroup='Sin Incidencia',
-                                name='Sin Incidencia',
-                                side='negative',
-                                line_color='rgb(102, 197, 204)',
-                                showlegend=show_legend[i]
-                                )
-                    )
-        fig.add_trace(go.Violin(x=df_filtered['Weather_Condition'][df_filtered['Disruption_Occurred'] == 1],
-                                y=df_filtered['Lead_Time_Days'][df_filtered['Disruption_Occurred'] == 1],
-                                legendgroup='Incidencia',
-                                scalegroup='Incidencia',
-                                name='Incidencia',
-                                side='positive',
-                                line_color='rgb(246, 207, 113)',
-                                showlegend=show_legend[i]
-                                )
-                    )
-    fig.update_traces(meanline_visible=True,
-                      jitter=0.05,  
-                      scalemode='count'
-                      ) 
-    fig.update_layout(
-        title_text='Título aquí',
-        violingap=0.1, violingroupgap=0, violinmode='overlay')
-    fig.update_yaxes(title_text='Días hasta entrega')
-    fig.update_xaxes(title_text='Condición climática')
-    st.plotly_chart(fig)
+    # RUTA + INCIDENCIAS + RIESGO GEOPOLÍTICO
+    with st.container(border=True):
 
-    #___________________________
-    st.subheader('Test selector')
-    selected_origin = st.selectbox('Seleccionar puerto de origen',
-                                      ports2)
-    selected_desti = st.selectbox('Seleccionar puerto de destino',
-                                      ports2)
-    test = st.session_state.data.loc[:,['Origin_Port','Destination_Port','Weather_Condition', 'Geopolitical_Risk_Score', 'Disruption_Occurred']]
-    test_fil = test[(test['Origin_Port'] == selected_origin) & (test['Weather_Condition'] == 'Clear')]
-    
+        selected_origin = st.selectbox('Seleccionar puerto de origen',
+                                        ports2)
 
-    fig = px.scatter(
-                    test_fil,
-                    x='Destination_Port', 
-                    y='Geopolitical_Risk_Score',
-                    color = 'Disruption_Occurred',
-                    facet_col='Disruption_Occurred',
-                    color_discrete_map={0: 'rgb(102, 197, 204)', 1: 'rgb(246, 207, 113)'})
-    st.plotly_chart(fig)
+        #Filtrado, extrayendo climas 'dominantes' en incidencias. Por puerto de origen
+        df_temp = st.session_state.data.loc[:,['Origin_Port','Destination_Port','Weather_Condition', 'Geopolitical_Risk_Score', 'Disruption_Occurred']]
+        
+        df_temp = df_temp[~df_temp['Weather_Condition'].isin(['Hurricane', 'Storm'])]
+        df_temp = df_temp[df_temp['Origin_Port'] == selected_origin]
 
+        #Asignamos diferentes niveles de riesgo
+        limits_political_risk = [0, 3, 6, 10]
+        labels_polical_risk = ['Riesgo Bajo (0-3)', 'Riesgo Medio (3-6)', 'Riesgo Alto (6-10)']
+        
+        df_temp['Rango_Riesgo'] = pd.cut(
+            df_temp['Geopolitical_Risk_Score'], 
+            bins=limits_political_risk, 
+            labels=labels_polical_risk, 
+            include_lowest=True
+        )
+
+        #Agrupamos para extraer un conteo
+        df_group = df_temp.groupby(
+            ['Destination_Port','Rango_Riesgo','Disruption_Occurred'],
+            observed=True).size().reset_index(name='Cantidad')
+        #Aviso en terminal: observed=True FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+        
+        df_group = df_group.rename(columns={'0':'Cantidad'})
+
+        fig = px.bar(
+            df_group,
+            x='Rango_Riesgo',             
+            y='Cantidad',               
+            color='Disruption_Occurred',   
+            facet_col='Destination_Port', 
+            facet_col_wrap=3,             
+            color_discrete_map={
+                0: 'rgb(102, 197, 204)',  
+                1: 'rgb(246, 207, 113)'   
+            },
+            labels={
+                'Rango_Riesgo': 'Nivel de Riesgo Geopolítico',
+                'Cantidad': 'Total',
+                'Disruption_Occurred': 'Incidencia'
+            },
+            title=f"Incidencias según riesgo geopolítico en rutas desde {selected_origin}"
+        )
+
+        st.plotly_chart(fig)
 
 with tab3:
     st.header("Análisis de Parche (Inferencia)")
