@@ -5,8 +5,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from dask.distributed import Client
 import joblib
-import dask.array as da
-import time
+import dask.dataframe as dd
+from dask.distributed import Client, LocalCluster
 import os, sys
 import warnings
 import rpy2.robjects as ro
@@ -34,6 +34,45 @@ def load_selected_data(dataset_name):
     data['Year'] = data.Date.dt.year
     data['Month'] = data.Date.dt.month
     data['Day'] = data.Date.dt.day
+    return data
+
+@st.cache_resource
+def dask_client():
+    
+    ### Comenzamos configurando e inicializando el cliente de Dask
+    cluster = LocalCluster(
+        n_workers=2,                # num procesos
+        threads_per_worker=3,       # hilos por proceso (6 núcleos en total)
+        memory_limit="950MB",       # la RAM que quedaba libre
+        processes=False             
+    )
+    #Inicialización del cliente de Dask
+    client = Client(cluster)
+
+if __name__ == '__main__':
+    client = dask_client()
+
+@st.cache_resource
+def load_data_dask(dataset_name):
+    data = dd.read_parquet(dataset_name)
+    cols_to_category = ['Origin_Port', 'Destination_Port', 'Transport_Mode',
+                        'Product_Category', 'Weather_Condition', 'Disruption_Occurred']
+    disruption_map = {1: 'Sí', 0: 'No'}
+   # Reemplaza el bloque del mapeo por esto:
+    data['Disruption_Occurred'] = data['Disruption_Occurred'].replace({1: 'Sí', 0: 'No'}).astype(str)
+    for col in cols_to_category:
+        data[col] = data[col].astype('category')
+    data['Date'] = dd.to_datetime(data['Date'], format='%Y/%m/%d')
+    data['Year'] = data['Date'].dt.year
+    data['Month'] = data['Date'].dt.month
+    data['Day'] = data['Date'].dt.day
+    data = data.drop(columns=['Date'])
+    return data
+
+@st.cache_resource
+def pandas_to_dask(df):
+    df_copia = df.copy() #Copia necesaria: Se 
+    data = dd.from_pandas(df_copia, npartitions=4)
     return data
 
 @st.cache_resource
@@ -83,6 +122,21 @@ def load_R_functions():
     return r_functions
 
 dict_R = load_R_functions()
+
+@st.cache_resource
+def apply_political_risk_range(pandas_partition):
+    #Función para mapear el df de dask
+    limits_political_risk = [0, 3, 6, 10]
+    labels_polical_risk = ['Riesgo Bajo (0-3)', 'Riesgo Medio (3-6)', 'Riesgo Alto (6-10)']
+    
+    # pd.cut sobre la partición que toque
+    pandas_partition['Rango_Riesgo'] = pd.cut(
+        pandas_partition['Geopolitical_Risk_Score'], 
+        bins=limits_political_risk, 
+        labels=labels_polical_risk, 
+        include_lowest=True
+    )
+    return pandas_partition
 
 tab1, tab2, tab3, tab4 = st.tabs(["Carga de datos", "Visualizaciones descriptivas", "Predicción con modelos", "Eficacia de los modelos"])
 
@@ -349,46 +403,47 @@ with tab2:
         st.plotly_chart(fig)
 
     # RUTA + INCIDENCIAS + RIESGO GEOPOLÍTICO
+    
     with st.container(border=True):
 
         selected_origin = st.selectbox('Seleccionar puerto de origen',
                                         ports2)
-
+        #Pasamos a df de dask
+        #df_temp = load_data_dask("https://raw.githubusercontent.com/vicsilnieR/GlobalSupply/main/datos/supplies_data.parquet")
+        df_temp = pandas_to_dask(st.session_state.data)
         #Filtrado, extrayendo climas 'dominantes' en incidencias. Por puerto de origen
-        df_temp = st.session_state.data.loc[:,['Origin_Port','Destination_Port','Weather_Condition', 'Geopolitical_Risk_Score', 'Disruption_Occurred']]
         
-        df_temp = df_temp[~df_temp['Weather_Condition'].isin(['Hurricane', 'Storm'])]
-        df_temp = df_temp[df_temp['Origin_Port'] == selected_origin]
+        df_temp = df_temp.query("Weather_Condition != 'Hurricane' and Weather_Condition != 'Storm'")
+        df_temp = df_temp.query(f"Origin_Port == '{selected_origin}'")
 
-        #Asignamos diferentes niveles de riesgo
-        limits_political_risk = [0, 3, 6, 10]
-        labels_polical_risk = ['Riesgo Bajo (0-3)', 'Riesgo Medio (3-6)', 'Riesgo Alto (6-10)']
-        
-        df_temp['Rango_Riesgo'] = pd.cut(
-            df_temp['Geopolitical_Risk_Score'], 
-            bins=limits_political_risk, 
-            labels=labels_polical_risk, 
-            include_lowest=True
-        )
+        #Asignamos diferentes niveles de riesgo con map_partitions y la función creada previamente
+        df_temp = df_temp.map_partitions(
+            apply_political_risk_range,
+            meta = df_temp._meta.assign(Rango_Riesgo = 'category'))
+            #Indicamos la nueva columna que generará la función 
+            #que se mapea.
 
         #Agrupamos para extraer un conteo
         df_group = df_temp.groupby(
             ['Destination_Port','Rango_Riesgo','Disruption_Occurred'],
-            observed=True).size().reset_index(name='Cantidad')
+            observed=True).size()
         #Aviso en terminal: observed=True FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
         
-        df_group = df_group.rename(columns={'0':'Cantidad'})
+        df_group = df_group.reset_index()
+        df_group = df_group.rename(columns={0: 'Cantidad'})
+        
+        df_grafico = df_group.compute()
 
         fig = px.bar(
-            df_group,
+            df_grafico,
             x='Rango_Riesgo',             
             y='Cantidad',               
             color='Disruption_Occurred',   
             facet_col='Destination_Port', 
             facet_col_wrap=3,             
             color_discrete_map={
-                0: 'rgb(102, 197, 204)',  
-                1: 'rgb(246, 207, 113)'   
+                'No': 'rgb(102, 197, 204)',  
+                'Sí': 'rgb(246, 207, 113)'   
             },
             labels={
                 'Rango_Riesgo': 'Nivel de Riesgo Geopolítico',
@@ -399,7 +454,6 @@ with tab2:
         )
 
         st.plotly_chart(fig)
-
 with tab3:
     st.header("Análisis de Parche (Inferencia)")
 
