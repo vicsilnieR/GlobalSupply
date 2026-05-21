@@ -17,7 +17,7 @@ def rawGlobalSupply(database: DuckDBResource) -> dg.MaterializeResult:
         CREATE OR REPLACE TABLE supplies AS
         SELECT * FROM read_csv_auto('{csv_file}')
         ORDER BY Shipment_ID ASC
-        LIMIT 4000;
+        LIMIT 5000;
     """
     
     with database.get_connection() as conn:
@@ -84,17 +84,42 @@ def suppliesGlobalSupply(database: DuckDBResource) -> None:
         else:
             raise e
 
+
 @dg.asset
+def predictGlobalSupply(database: DuckDBResource) -> None:
+    
+    path = kagglehub.dataset_download("nudratabbas/global-supply-chain-risk-and-logistics-2024-2026")
+    csv_file = os.path.join(path, "global_supply_chain_risk_2026.csv")
+    
+    query = f"""
+        CREATE OR REPLACE TABLE supplies_predict AS
+        SELECT * FROM read_csv_auto('{csv_file}')
+        WHERE 1=0;
+    """
+    
+    with database.get_connection() as conn:
+        conn.execute(query)
+        num_rows = conn.execute("SELECT COUNT(*) FROM supplies_predict").fetchone()[0]
+
+    return dg.MaterializeResult(
+        metadata={
+            'Número de filas': dg.MetadataValue.int(num_rows)
+        }
+    )
+
+
+
+@dg.asset(deps=[predictGlobalSupply])
 def new_rawGlobalSupply(database: DuckDBResource) -> dg.MaterializeResult:
     
     path = kagglehub.dataset_download("nudratabbas/global-supply-chain-risk-and-logistics-2024-2026")
     csv_file = os.path.join(path, "global_supply_chain_risk_2026.csv")
 
     query = f"""
-        CREATE OR REPLACE TABLE supplies_predict AS
+        INSERT INTO supplies_predict
         SELECT * FROM read_csv_auto('{csv_file}')
         ORDER BY Shipment_ID ASC
-        LIMIT 500 
+        LIMIT 250 
         OFFSET 4000;
     """
     

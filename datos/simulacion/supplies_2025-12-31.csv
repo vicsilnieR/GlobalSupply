@@ -1,0 +1,8 @@
+Date,Origin_Port,Destination_Port,Transport_Mode,Product_Category,Distance_km,Weight_MT,Fuel_Price_Index,Geopolitical_Risk_Score,Weather_Condition,Carrier_Reliability_Score,Lead_Time_Days,Disruption_Occurred,Year,Month,Day
+2025-12-31,Singapore,Shanghai,Road,Automotive,8456.64,473.9,4.42,9.1,Clear,0.61,6.39,1,2025,12,31
+2025-12-31,Dubai,Antwerp,Road,Textiles,7727.41,290.8,3.44,1.4,Hurricane,0.848,39.58,1,2025,12,31
+2025-12-31,Singapore,Rotterdam,Air,Perishables,4560.54,127.13,4.16,5.1,Fog,0.696,1.23,0,2025,12,31
+2025-12-31,Los Angeles,Rotterdam,Road,Textiles,12587.92,322.73,1.97,1.5,Fog,0.869,11.74,0,2025,12,31
+2025-12-31,Rotterdam,Los Angeles,Rail,Automotive,2028.2,343.08,1.82,5.7,Fog,0.949,2.67,1,2025,12,31
+2025-12-31,Dubai,Shanghai,Sea,Pharmaceuticals,4789.45,355.19,3.37,9.8,Storm,0.77,30.05,1,2025,12,31
+2025-12-31,Los Angeles,Antwerp,Air,Pharmaceuticals,2132.56,80.8,3.81,6.0,Clear,0.804,0.57,0,2025,12,31

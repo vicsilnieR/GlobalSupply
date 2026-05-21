@@ -1,4 +1,0 @@
-locations:
-- code_source:
-    module_name: my_project.definitions
-  location_name: my_project_definitions
