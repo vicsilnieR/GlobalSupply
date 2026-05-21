@@ -1,6 +1,5 @@
 import os
 import pandas as pd
-import numpy as np
 import joblib
 import matplotlib
 matplotlib.use('Agg')
@@ -88,15 +87,16 @@ ct_tree = make_column_transformer(
 )
 
 
+
 ## Configuración multimodelo y directorio
 
-directorio_modelos = 'modelos'
+directorio_modelos = 'modelos_clasificacion'
 os.makedirs(directorio_modelos, exist_ok=True)
 
 ## Definimos los modelos base 
 
 #Escalados
-knn = KNeighborsClassifier(n_neighbors=9)
+knn = KNeighborsClassifier(n_neighbors=15, weights='uniform')
 svm = SVC(kernel='rbf', C=1.0, gamma='scale', random_state=random_state_value, probability=True)
 lr = LogisticRegression(max_iter=1000, random_state=random_state_value)
 #NO escalados
