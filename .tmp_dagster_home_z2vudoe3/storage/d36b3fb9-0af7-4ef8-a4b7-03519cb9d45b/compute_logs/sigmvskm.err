@@ -1,0 +1,24 @@
+[32m2026-05-22 06:24:13 +0200[0m - dagster - [34mDEBUG[0m - supplies_update_job - d36b3fb9-0af7-4ef8-a4b7-03519cb9d45b - 4576 - LOGS_CAPTURED - Started capturing logs in process (pid: 4576).
+[32m2026-05-22 06:24:13 +0200[0m - dagster - [34mDEBUG[0m - supplies_update_job - d36b3fb9-0af7-4ef8-a4b7-03519cb9d45b - 4576 - add_GlobalSupply_history - STEP_START - Started execution of step "add_GlobalSupply_history".
+[32m2026-05-22 06:24:13 +0200[0m - dagster - [34mERROR[0m - [31msupplies_update_job - d36b3fb9-0af7-4ef8-a4b7-03519cb9d45b - 4576 - add_GlobalSupply_history - STEP_FAILURE - Execution of step "add_GlobalSupply_history" failed.
+
+dagster._core.errors.DagsterExecutionStepExecutionError: Error occurred while executing op "add_GlobalSupply_history"::
+
+KeyError: '2026-05-21'
+
+Stack Trace:
+  File "C:\Users\victo\Documents\GitHub\GlobalSupply\.venv\Lib\site-packages\dagster\_core\execution\plan\utils.py", line 57, in op_execution_error_boundary
+    yield
+  File "C:\Users\victo\Documents\GitHub\GlobalSupply\.venv\Lib\site-packages\dagster\_utils\__init__.py", line 394, in iterate_with_context
+    next_output = next(iterator)
+                  ^^^^^^^^^^^^^^
+  File "C:\Users\victo\Documents\GitHub\GlobalSupply\.venv\Lib\site-packages\dagster\_core\execution\plan\compute_generator.py", line 135, in _coerce_op_compute_fn_to_iterator
+    result = invoke_compute_fn(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\victo\Documents\GitHub\GlobalSupply\.venv\Lib\site-packages\dagster\_core\execution\plan\compute_generator.py", line 115, in invoke_compute_fn
+    return fn(context, **args_to_pass) if context_arg_provided else fn(**args_to_pass)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\victo\Documents\GitHub\GlobalSupply\src\my_project\defs\assets\supplies.py", line 132, in add_GlobalSupply_history
+    date_sim_today = simulation_map[date_today]
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^
+[0m

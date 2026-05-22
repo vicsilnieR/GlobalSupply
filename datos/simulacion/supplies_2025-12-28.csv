@@ -1,4 +1,4 @@
-Date,Origin_Port,Destination_Port,Transport_Mode,Product_Category,Distance_km,Weight_MT,Fuel_Price_Index,Geopolitical_Risk_Score,Weather_Condition,Carrier_Reliability_Score,Lead_Time_Days,Disruption_Occurred,Year,Month,Day
-2025-12-28,Hamburg,Busan,Rail,Pharmaceuticals,8581.39,167.29,1.81,0.1,Hurricane,0.994,47.99,1,2025,12,28
-2025-12-28,Singapore,Dubai,Air,Electronics,1404.71,144.68,3.16,4.1,Storm,0.683,0.5,1,2025,12,28
-2025-12-28,Antwerp,Shanghai,Sea,Pharmaceuticals,7573.6,297.26,3.7,5.9,Hurricane,0.616,108.48,1,2025,12,28
+Shipment_ID,Date,Origin_Port,Destination_Port,Transport_Mode,Product_Category,Distance_km,Weight_MT,Fuel_Price_Index,Geopolitical_Risk_Score,Weather_Condition,Carrier_Reliability_Score
+SC-13557,2025-12-28,Antwerp,Shanghai,Sea,Pharmaceuticals,7573.6,297.26,3.7,5.9,Hurricane,0.616
+SC-13509,2025-12-28,Singapore,Dubai,Air,Electronics,1404.71,144.68,3.16,4.1,Storm,0.683
+SC-13387,2025-12-28,Hamburg,Busan,Rail,Pharmaceuticals,8581.39,167.29,1.81,0.1,Hurricane,0.994
