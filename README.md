@@ -1,61 +1,66 @@
-# my_project
+# Global Supply
 
-## Getting started
+## Iniciando el proyecto
 
-### Installing dependencies
+### Instalar dependencias
 
-**Option 1: uv**
-
-Ensure [`uv`](https://docs.astral.sh/uv/) is installed following their [official documentation](https://docs.astral.sh/uv/getting-started/installation/).
-
-Create a virtual environment, and install the required dependencies using _sync_:
+Crearemos un entorno virtual e instalaremos las dependencias requeridas usando _sync_:
 
 ```bash
 uv sync
 ```
 
-Then, activate the virtual environment:
+Posteriormente, activaremos el entorno virtual:
 
 | OS | Command |
 | --- | --- |
 | MacOS | ```source .venv/bin/activate``` |
 | Windows | ```.venv\Scripts\activate``` |
 
-**Option 2: pip**
+### Inicializar Dagster
 
-Install the python dependencies with [pip](https://pypi.org/project/pip/):
-
-```bash
-python3 -m venv .venv
-```
-
-Then activate the virtual environment:
-
-| OS | Command |
-| --- | --- |
-| MacOS | ```source .venv/bin/activate``` |
-| Windows | ```.venv\Scripts\activate``` |
-
-Install the required dependencies:
-
-```bash
-pip install -e ".[dev]"
-```
-
-### Running Dagster
-
-Start the Dagster UI web server:
+Iniciar UI Dagster web server:
 
 ```bash
 dg dev
 ```
 
-Open http://localhost:3000 in your browser to see the project.
+Abrimos http://localhost:3000 en el navegador para ver el proyecto
 
-## Learn more
+#### Reproducción del proyecto
 
-To learn more about this template and Dagster in general:
+**Paso 1:**
+Iniciamos la UI Dagster para materializar los assets. Esto crea los archivos en la nube que después cargaremos en los distintos scripts.
+Puede ser necesario hacer backfills de los datos diarios.
 
-- [Dagster Documentation](https://docs.dagster.io/)
-- [Dagster University](https://courses.dagster.io/)
-- [Dagster Slack Community](https://dagster.io/slack)
+**Paso 2:**
+Entrenar los modelos ejecutando los correspondientes scripts en la carpeta *entrenamiento_modelos*.
+
+**Paso 3:**
+Iniciar la aplicación en local:
+
+```bash
+uv run streamlit run main.py
+```
+
+**Paso 4:**
+Deploy con streamlit y github para acceso desde cualquier navegador.
+
+#### Objetivo del proyecto
+
+##### Objetivo
+El objetivo que se presenta será predecir si ocurrirá una incidencia en envíos futuros, además de la cantidad de días que requerirá dicho envío. 
+También, se intentará señalar qué parámetros tienen mayor influencia en el resultado.\n\n"
+##### Detalle de los datos
+* **Puerto de origen**: Lugar desde el que se envían las mercancías.
+* **Puerto de destino**: Lugar hasta el que llegan las mercancías.
+* **Medio de transporte**: Puede ser por mar, aire y tierra (tren o carretera).
+* **Categoría del producto**: Textil, automovilístico, electrónica...
+* **Distancia recorrida** (Km).
+* **Peso** (TM): Peso de los productos enviados.
+* **Índice de precio del combustible**: Multiplicador del coste del combustible normalizado.
+* **Puntuación de riesgo geopolítico**: Índice de riesgo basado en la estabilidad regional (0-10).
+* **Condición climática**: Condiciones atmosféricas durante el tránsito (Despejado, lluvia, tormenta...).
+* **Puntuación de confianza del transportista** (0.5-1).
+* **Días de tránsito**: Tiempo que ha tomado el envío (Objetivo de la regresión).
+* **Incidencia ocurrida**: Si ocurrió (1), o no (0), una incidencia durante el tránsito.

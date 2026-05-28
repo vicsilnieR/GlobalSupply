@@ -7,19 +7,25 @@ from dask.distributed import Client
 import joblib
 import dask.dataframe as dd
 from dask.distributed import Client, LocalCluster
-import os, sys
-import warnings
+import os
 import rpy2.robjects as ro
 from rpy2.robjects import r
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.conversion import localconverter
 
-DIR_MODELOS_CLAS = 'modelos_clasificacion'
-DIR_MODELOS_REG = 'modelos_regresion'
+DIR_MODELOS_CLAS = 'modelos/modelos_clasificacion'
+DIR_MODELOS_REG = 'modelos/modelos_regresion'
 URL_DATOS = 'https://raw.githubusercontent.com/vicsilnieR/GlobalSupply/main/datos/supplies_data.parquet'
 
 if 'data' not in st.session_state:
     st.session_state.data = None
+
+if 'date_to_predict' not in st.session_state:
+    st.session_state.date_to_predict = None  
+
+if 'daily_data_loaded' not in st.session_state:
+    st.session_state.daily_data_loaded = False
+
 
 @st.cache_data
 def load_selected_data(dataset_name):
@@ -75,7 +81,7 @@ def load_data_dask(dataset_name):
 @st.cache_resource
 def load_clas_models():
     """
-    Busca y carga todos los modelos entrenados desde la carpeta 'modelos/'.
+    Busca y carga todos los modelos entrenados desde la carpeta 'modelos/modelos_clasificacion'.
     """
     model_files = {
         'K vecinos más cercanos':'K_vecinos_mas_cercanos.pkl',
@@ -111,7 +117,7 @@ clas_metrics_data = load_clas_metrics()
 @st.cache_resource
 def load_reg_models():
     """
-    Busca y carga todos los modelos entrenados desde la carpeta 'modelos/'.
+    Busca y carga todos los modelos entrenados desde la carpeta 'modelos/modelos_regresion'.
     """
     model_files = {
         'K vecinos más cercanos':'K_vecinos_mas_cercanos.pkl',
@@ -172,11 +178,33 @@ def apply_political_risk_range(pandas_partition):
     )
     return pandas_partition
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["Presentación",
+@st.cache_resource
+def load_prediction_data(dataset_name):
+    data = dd.read_parquet(dataset_name)
+    cols_to_category = ['Origin_Port', 'Destination_Port', 'Transport_Mode',
+                        'Product_Category', 'Weather_Condition']
+    for col in cols_to_category:
+        data[col] = data[col].astype('category')
+    return data
+
+@st.cache_data
+def create_dict_dates():
+    simulation_map = { #Necesario para simular que 'hoy' se corresponde en fecha a nuestros datos
+    "2026-05-26": "2025-12-28",
+    "2026-05-27": "2025-12-29",
+    "2026-05-28": "2025-12-30",
+    "2026-05-29": "2025-12-31"
+    }
+    return simulation_map
+
+dict_dates_sim = create_dict_dates()
+
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Presentación",
                                         "Carga de datos",
                                         "Visualizaciones descriptivas",
                                         "Predicción con modelos", 
-                                        "Eficacia de los modelos"])
+                                        "Eficacia de los modelos",
+                                        "Predicción diaria"])
 
 with tab1:
     st.header('Presentación del problema')
@@ -188,7 +216,7 @@ with tab1:
             "Nuestro conjunto de datos recoge envíos de mercancía entre distintos puertos de todo el mundo con múltiples parámetros.\n\n"
             "#### Objetivo\n\n"
             "El objetivo que se presenta será predecir si ocurrirá una incidencia en envíos futuros, además de la cantidad de días que requerirá dicho envío. "
-            "Además, se intentará señalar qué parámetros tienen mayor influencia en el resultado.\n\n"
+            "También, se intentará señalar qué parámetros tienen mayor influencia en el resultado.\n\n"
             "#### Detalle de los datos\n\n"
             "* **Puerto de origen**: Lugar desde el que se envían las mercancías.\n"
             "* **Puerto de destino**: Lugar hasta el que llegan las mercancías.\n"
@@ -385,8 +413,6 @@ with tab3:
     
         st.plotly_chart(fig)
 
-    #VISUALIZACIÓN BÁSICA VARIABLES CONTINUAS
-
     #CORRELACIÓN VARIABLES CONTINUAS
     with st.container(border=True):
         selected_transport2 = st.selectbox('Seleccionar medio de transporte',
@@ -418,7 +444,7 @@ with tab3:
                     y='Lead_Time_Days',
                     color='Weather_Condition',
                     color_discrete_sequence=px.colors.qualitative.Pastel   ,
-                    title='Días de retraso según medio de transporte y clima'              
+                    title='Días de tránsito según medio de transporte y clima'              
                     )
         fig.update_layout(showlegend=False)
         fig.update_yaxes(title_text='Días hasta entrega')
@@ -613,7 +639,7 @@ with tab4:
     
     # Contenedor con borde para estética moderna
     with st.container(border=True):
-        st.subheader("1. Cargar Muestra")
+        st.subheader("1. Seleccionar instancia")
         fil1, fil2, fil3 = st.columns(3)
         ports = st.session_state.data['Origin_Port'].unique().tolist()
         transports_list = st.session_state.data['Transport_Mode'].unique().tolist()
@@ -704,10 +730,10 @@ with tab4:
             
             st.info(f"**Tiempo estimado de transporte:** {prediction_reg:.1f} días (± {mm['MAE']:.1f} días)")
 
-
 with tab5:
     st.header("Análisis Comparativo y Métricas")
     
+    st.markdown("### Modelos de clasificación")
     if clas_metrics_data is None:
         st.warning(f"No se encontraron datos de métricas en '{DIR_MODELOS_CLAS}/all_metrics.pkl'. Ejecuta el entrenamiento primero.")
     else:
@@ -733,8 +759,8 @@ with tab5:
         
         
         st.warning("""
-        🩺 **Nota Clínica sobre la Sensibilidad (Recall):** En la detección de cáncer, la Sensibilidad es la métrica más crítica. Representa la capacidad del modelo para no dejar escapar ningún caso positivo. 
-        Un valor bajo (por ejemplo, cercano al 50%) es **clínicamente inaceptable**, ya que significa que el modelo está fallando en detectar casi la mitad de los tejidos malignos reales (Falsos Negativos). En entornos médicos, se busca priorizar esta métrica por encima del 90-95%.
+        A la hora de predecir si ocurrirá o no una incidencia, estamos interesados en conocer todas las incidencias que ocurran.
+        Por ello, la métrica que más nos interesa es la **Sensibilidad (Recall)**.
         """)
 
         st.divider()
@@ -742,7 +768,7 @@ with tab5:
         col_img1, col_img2 = st.columns(2)
         
         with col_img1:
-            st.subheader("Matriz de Confusión")
+            st.markdown("#### Matriz de Confusión")
             img_cm = os.path.join(DIR_MODELOS_CLAS, f"{modelo_stats}_cm.png")
             if os.path.exists(img_cm):
                 st.image(img_cm, width='stretch')
@@ -750,7 +776,7 @@ with tab5:
                 st.info("Imagen no encontrada.")
                 
         with col_img2:
-            st.subheader("Curva ROC (AUC)")
+            st.markdown("#### Curva ROC (AUC)")
             img_roc = os.path.join(DIR_MODELOS_CLAS, f"{modelo_stats}_roc.png")
             if os.path.exists(img_roc):
                 st.image(img_roc, width='stretch')
@@ -760,7 +786,7 @@ with tab5:
         st.divider()
         
         # 4. Tabla resumen comparativa
-        st.subheader("Resumen Comparativo General")
+        st.markdown("#### Resumen Comparativo General")
         # Convertimos el diccionario a DataFrame para mostrarlo bonito
         df_metrics = pd.DataFrame(clas_metrics_data).T
         
@@ -770,6 +796,7 @@ with tab5:
 
 #_______________________________________________________________
 
+    st.markdown("### Modelos de regresión")
     if reg_metrics_data is None:
         st.warning(f"No se encontraron datos de métricas en '{DIR_MODELOS_REG}/all_metrics.pkl'. Ejecuta el entrenamiento primero.")
     else:
@@ -795,8 +822,8 @@ with tab5:
         
         
         st.warning("""
-        🩺 **Nota Clínica sobre la Sensibilidad (Recall):** En la detección de cáncer, la Sensibilidad es la métrica más crítica. Representa la capacidad del modelo para no dejar escapar ningún caso positivo. 
-        Un valor bajo (por ejemplo, cercano al 50%) es **clínicamente inaceptable**, ya que significa que el modelo está fallando en detectar casi la mitad de los tejidos malignos reales (Falsos Negativos). En entornos médicos, se busca priorizar esta métrica por encima del 90-95%.
+       En el caso de la regresión buscamos el modelo que minimice tanto el **MAE** (Error absoluto medio), como el **MSE** (Error cuadrático medio).
+        Un valor bajo del MAE con un valor muy alto del MSE indicará que acertamos en gran medida pero cuando cometemos errores también lo hacemos en magnitudes elevadas.
         """)
 
         st.divider()
@@ -804,7 +831,7 @@ with tab5:
         col_img1, col_img2 = st.columns(2)
         
         with col_img1:
-            st.subheader("Gráfico CALIDAD REG: PONER NOMBRE")
+            st.markdown("#### Gráfico de Valores reales vs Predicciones")
             img_dis = os.path.join(DIR_MODELOS_REG, f"{modelo_stats}_dispersion.png")
             if os.path.exists(img_dis):
                 st.image(img_dis, width='stretch')
@@ -814,7 +841,7 @@ with tab5:
         st.divider()
         
         # 4. Tabla resumen comparativa
-        st.subheader("Resumen Comparativo General")
+        st.markdown("### Resumen Comparativo General")
         # Convertimos el diccionario a DataFrame para mostrarlo bonito
         df_metrics = pd.DataFrame(reg_metrics_data).T
         
@@ -830,16 +857,75 @@ with tab5:
         )
         st.dataframe(df_metrics_styled, width='stretch')
     
+with tab6:
+    
+    st.date_input(
+        "Fecha de los envíos a predecir:",
+        key="date_to_predict"
+    )
+
+    if 'check_fecha' not in st.session_state:
+        st.session_state.check_fecha = None
+    
+    if 'daily_data' not in st.session_state:
+        st.session_state.daily_data = None
+
+    if st.session_state.date_to_predict:
+        search_date = dict_dates_sim[st.session_state.date_to_predict.strftime("%Y-%m-%d")]
+        if st.session_state.date_to_predict and st.session_state.date_to_predict != st.session_state.check_fecha:
+            with st.spinner("Verificando si existen datos para la fecha seleccionada..."):
+                
+                try:
+                    st.session_state.daily_data  = load_prediction_data(f"https://github.com/vicsilnieR/GlobalSupply/raw/refs/heads/main/datos/daily_supplies/supplies_to_predict_{search_date}.parquet")
+                    st.session_state.daily_data.head(1)
+
+                    st.session_state.daily_data_loaded = True
+                except Exception:
+                    st.session_state.daily_data_loaded = False            
+        st.session_state.check_fecha = st.session_state.date_to_predict
         
+        if  st.session_state.daily_data_loaded:
+            with st.container(border=True):
+                st.success(f"Datos cargados para el {st.session_state.date_to_predict} cagados correctamente")
+                st.dataframe(st.session_state.daily_data.head(10))
+        else:
+            with st.container(border=True):
+                st.error("No hay datos para la fecha seleccionada.")
+        
+    else:
+        st.error("Seleccione una fecha.")
 
 
+    st.divider()    
 
+    if st.button("Predecir datos"):
+        with st.container(border=True):
+            with st.spinner("Realizando predicción..."):
 
-    
+                daily_data = load_prediction_data(f"https://github.com/vicsilnieR/GlobalSupply/raw/refs/heads/main/datos/daily_supplies/supplies_to_predict_{search_date}.parquet")
 
+                data_to_predict = daily_data.copy()
+                cols_remove = ['Shipment_ID', 'Date']
 
+                recom_clas = available_clas_models['K vecinos más cercanos']
+                recom_reg = available_reg_models['Bosques Aleatorios']
 
-    
-    
+                X_predict_pandas = data_to_predict.drop(columns=cols_remove).compute()
+                ids_pandas = data_to_predict['Shipment_ID'].compute()
+                dates_pandas = data_to_predict['Date'].compute()
 
+                predictions_clas = recom_clas.predict(X_predict_pandas)
+                probas_predict_clas = recom_clas.predict_proba(X_predict_pandas)
+                probs_to_df = probas_predict_clas[np.arange(len(predictions_clas)), predictions_clas]
 
+                predictions_reg = recom_reg.predict(X_predict_pandas)
+
+                df_guardar = pd.DataFrame({
+                    'Shipment_ID': ids_pandas,
+                    'Date': dates_pandas,
+                    'Predicción_Incidencia': predictions_clas,
+                    'Confianza_Predicción': probs_to_df,
+                    'Predicción_Días_Tránsito': predictions_reg
+                })
+
+                st.dataframe(df_guardar)

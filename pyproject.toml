@@ -1,5 +1,5 @@
 [project]
-name = "my_project"
+name = "orquestacion_supplies"
 requires-python = ">=3.10,<3.15"
 version = "0.1.0"
 dependencies = [
@@ -40,9 +40,9 @@ force-include = { "pyproject.toml" = "pyproject.toml" }
 directory_type = "project"
 
 [tool.dg.project]
-root_module = "my_project"
+root_module = "orquestacion_supplies"
 registry_modules = [
-    "my_project.components.*",
+    "orquestacion_supplies.components.*",
 ]
 
 

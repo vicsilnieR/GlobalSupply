@@ -1,7 +1,0 @@
-Shipment_ID,Date,Origin_Port,Destination_Port,Transport_Mode,Product_Category,Distance_km,Weight_MT,Fuel_Price_Index,Geopolitical_Risk_Score,Weather_Condition,Carrier_Reliability_Score
-SC-11505,2025-12-30,Dubai,Hamburg,Sea,Electronics,6282.93,404.01,3.97,3.7,Hurricane,0.631
-SC-13119,2025-12-30,Busan,Los Angeles,Road,Textiles,3608.89,265.39,1.88,8.2,Hurricane,0.822
-SC-11519,2025-12-30,Singapore,Marseille,Rail,Pharmaceuticals,13942.0,78.69,4.02,1.1,Clear,0.932
-SC-13871,2025-12-30,Rotterdam,Los Angeles,Road,Electronics,3135.79,67.85,2.22,3.5,Storm,0.926
-SC-13802,2025-12-30,Dubai,Los Angeles,Sea,Pharmaceuticals,12371.73,240.91,4.39,4.3,Rain,0.653
-SC-14606,2025-12-30,Hamburg,Dubai,Sea,Perishables,12768.8,407.1,3.77,9.0,Hurricane,0.728
