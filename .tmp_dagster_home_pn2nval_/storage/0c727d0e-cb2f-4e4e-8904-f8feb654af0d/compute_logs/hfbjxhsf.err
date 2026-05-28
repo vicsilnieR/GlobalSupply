@@ -1,0 +1,5 @@
+[32m2026-05-28 12:01:38 +0200[0m - dagster - [34mDEBUG[0m - __ASSET_JOB - 0c727d0e-cb2f-4e4e-8904-f8feb654af0d - 7868 - LOGS_CAPTURED - Started capturing logs in process (pid: 7868).
+[32m2026-05-28 12:01:38 +0200[0m - dagster - [34mDEBUG[0m - __ASSET_JOB - 0c727d0e-cb2f-4e4e-8904-f8feb654af0d - 7868 - rawTrainingGlobalSupply - STEP_START - Started execution of step "rawTrainingGlobalSupply".
+[32m2026-05-28 12:01:42 +0200[0m - dagster - [34mDEBUG[0m - __ASSET_JOB - 0c727d0e-cb2f-4e4e-8904-f8feb654af0d - 7868 - rawTrainingGlobalSupply - STEP_OUTPUT - Yielded output "result" of type "Any". (Type check passed).
+[32m2026-05-28 12:01:42 +0200[0m - dagster - [34mDEBUG[0m - __ASSET_JOB - 0c727d0e-cb2f-4e4e-8904-f8feb654af0d - 7868 - rawTrainingGlobalSupply - ASSET_MATERIALIZATION - Materialized value rawTrainingGlobalSupply.
+[32m2026-05-28 12:01:42 +0200[0m - dagster - [34mDEBUG[0m - __ASSET_JOB - 0c727d0e-cb2f-4e4e-8904-f8feb654af0d - 7868 - rawTrainingGlobalSupply - STEP_SUCCESS - Finished execution of step "rawTrainingGlobalSupply" in 3.53s.

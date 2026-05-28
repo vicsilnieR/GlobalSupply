@@ -1,0 +1,26 @@
+[32m2026-05-28 12:02:31 +0200[0m - dagster - [34mDEBUG[0m - __ASSET_JOB - 481eded2-8f35-4eb1-ab66-aa2b161799a4 - 7468 - LOGS_CAPTURED - Started capturing logs in process (pid: 7468).
+[32m2026-05-28 12:02:31 +0200[0m - dagster - [34mDEBUG[0m - __ASSET_JOB - 481eded2-8f35-4eb1-ab66-aa2b161799a4 - 7468 - add_GlobalSupply_history - STEP_START - Started execution of step "add_GlobalSupply_history".
+[32m2026-05-28 12:02:31 +0200[0m - dagster - [34mERROR[0m - [31m__ASSET_JOB - 481eded2-8f35-4eb1-ab66-aa2b161799a4 - 7468 - add_GlobalSupply_history - STEP_FAILURE - Execution of step "add_GlobalSupply_history" failed.
+
+dagster._core.errors.DagsterExecutionStepExecutionError: Error occurred while executing op "add_GlobalSupply_history"::
+
+_duckdb.HTTPException: HTTP Error: HTTP GET error on 'https://raw.githubusercontent.com/vicsilnieR/GlobalSupply/refs/heads/main/datos/simulacion/supplies_2025-12-28.csv' (HTTP 404 Not Found)
+
+LINE 3:         SELECT * FROM read_csv_auto('https://raw.githubusercontent.com/vicsilnieR...
+                              ^
+
+Stack Trace:
+  File "C:\Users\victo\Documents\GitHub\GlobalSupply\.venv\Lib\site-packages\dagster\_core\execution\plan\utils.py", line 57, in op_execution_error_boundary
+    yield
+  File "C:\Users\victo\Documents\GitHub\GlobalSupply\.venv\Lib\site-packages\dagster\_utils\__init__.py", line 394, in iterate_with_context
+    next_output = next(iterator)
+                  ^^^^^^^^^^^^^^
+  File "C:\Users\victo\Documents\GitHub\GlobalSupply\.venv\Lib\site-packages\dagster\_core\execution\plan\compute_generator.py", line 135, in _coerce_op_compute_fn_to_iterator
+    result = invoke_compute_fn(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\victo\Documents\GitHub\GlobalSupply\.venv\Lib\site-packages\dagster\_core\execution\plan\compute_generator.py", line 115, in invoke_compute_fn
+    return fn(context, **args_to_pass) if context_arg_provided else fn(**args_to_pass)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\victo\Documents\GitHub\GlobalSupply\src\orquestacion_supplies\defs\assets\supplies.py", line 149, in add_GlobalSupply_history
+    conn.execute(query_add)
+[0m
