@@ -1,0 +1,5 @@
+[32m2026-06-03 13:08:08 +0200[0m - dagster - [34mDEBUG[0m - __ASSET_JOB - dcee787d-f97e-46bd-88e0-73b262e94baa - 3644 - LOGS_CAPTURED - Started capturing logs in process (pid: 3644).
+[32m2026-06-03 13:08:08 +0200[0m - dagster - [34mDEBUG[0m - __ASSET_JOB - dcee787d-f97e-46bd-88e0-73b262e94baa - 3644 - add_GlobalSupply_history - STEP_START - Started execution of step "add_GlobalSupply_history".
+[32m2026-06-03 13:08:08 +0200[0m - dagster - [34mDEBUG[0m - __ASSET_JOB - dcee787d-f97e-46bd-88e0-73b262e94baa - 3644 - add_GlobalSupply_history - STEP_OUTPUT - Yielded output "result" of type "Any". (Type check passed).
+[32m2026-06-03 13:08:09 +0200[0m - dagster - [34mDEBUG[0m - __ASSET_JOB - dcee787d-f97e-46bd-88e0-73b262e94baa - 3644 - add_GlobalSupply_history - ASSET_MATERIALIZATION - Materialized value add_GlobalSupply_history.
+[32m2026-06-03 13:08:09 +0200[0m - dagster - [34mDEBUG[0m - __ASSET_JOB - dcee787d-f97e-46bd-88e0-73b262e94baa - 3644 - add_GlobalSupply_history - STEP_SUCCESS - Finished execution of step "add_GlobalSupply_history" in 865ms.
