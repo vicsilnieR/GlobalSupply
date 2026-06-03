@@ -1,0 +1,5 @@
+[32m2026-06-03 12:58:59 +0200[0m - dagster - [34mDEBUG[0m - __ASSET_JOB - 515b4e9a-26cc-446c-b443-3ce17764b681 - 14412 - LOGS_CAPTURED - Started capturing logs in process (pid: 14412).
+[32m2026-06-03 12:58:59 +0200[0m - dagster - [34mDEBUG[0m - __ASSET_JOB - 515b4e9a-26cc-446c-b443-3ce17764b681 - 14412 - new_GlobalSupply_prediction - STEP_START - Started execution of step "new_GlobalSupply_prediction".
+[32m2026-06-03 12:59:03 +0200[0m - dagster - [34mDEBUG[0m - __ASSET_JOB - 515b4e9a-26cc-446c-b443-3ce17764b681 - 14412 - new_GlobalSupply_prediction - STEP_OUTPUT - Yielded output "result" of type "Nothing". (Type check passed).
+[32m2026-06-03 12:59:03 +0200[0m - dagster - [34mDEBUG[0m - __ASSET_JOB - 515b4e9a-26cc-446c-b443-3ce17764b681 - 14412 - new_GlobalSupply_prediction - ASSET_MATERIALIZATION - Materialized value new_GlobalSupply_prediction.
+[32m2026-06-03 12:59:03 +0200[0m - dagster - [34mDEBUG[0m - __ASSET_JOB - 515b4e9a-26cc-446c-b443-3ce17764b681 - 14412 - new_GlobalSupply_prediction - STEP_SUCCESS - Finished execution of step "new_GlobalSupply_prediction" in 3.72s.
