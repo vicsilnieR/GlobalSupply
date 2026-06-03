@@ -112,7 +112,7 @@ def init_GlobalSupply_history(database: DuckDBResource) -> None:
 #Asset que guarda en mi tabla histórica los envíos de un día (ese día)
 
 simulation_map = { #Necesario para simular que 'hoy' se corresponde en fecha a nuestros datos
-    "2026-05-29": "2025-12-28",
+    "2026-05-31": "2025-12-28",
     "2026-06-01": "2025-12-29",
     "2026-06-02": "2025-12-30",
     "2026-06-03": "2025-12-31"
