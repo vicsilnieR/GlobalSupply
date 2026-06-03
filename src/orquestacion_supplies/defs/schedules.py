@@ -4,7 +4,7 @@ import datetime
 
 @dg.schedule(
     job=supplies_update_job,
-    cron_schedule="55 6 * * 1-5", # Tu cron original: 02:06 AM de Lunes a Viernes
+    cron_schedule="52 13 * * 1-5", 
     execution_timezone="Europe/Madrid"
 )
 def supplies_update_job_schedule(context):
